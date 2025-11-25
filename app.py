@@ -184,11 +184,6 @@ def server(input, output, session):
                 
                 return ui.div(
                     ui.h4(f"📍 {selected_municipality['name']}", style="color: #2563eb;"),
-                    ui.div(
-                        ui.p(f"📋 種別: {selected_municipality['type']}"),
-                        ui.p(f"🔤 読み方: {selected_municipality['reading']}"),
-                        style="background-color: #f8fafc; padding: 15px; border-radius: 5px; margin-top: 10px;"
-                    ),
                     ui.hr(),
                     ui.div(
                         ui.strong("✅ 選択完了"),
