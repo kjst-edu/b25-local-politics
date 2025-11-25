@@ -12,7 +12,8 @@ import pandas as pd
 from shiny import App, reactive, render, ui
 import pandas as pd
 
-# 大阪府の市町村データ
+# 大阪府の市町村データ,ここに市町村ごとのデータをどうにか結びつける必要あり
+#結びつけるうえ、それがどの項目に当てはまるのかの分類も加える必要がある
 municipalities_data = [
     # 市
     {"name": "大阪市", "reading": "おおさかし", "type": "市"},
