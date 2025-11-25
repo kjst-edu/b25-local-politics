@@ -163,14 +163,14 @@ def server(input, output, session):
         )
 
 app = App(app_ui, server)
-
-#選択項目
+#今のところこの上下の機能は連結していません。
+#表示項目
 from shiny import App, reactive, render, ui
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-# サンプルデータを生成する関数（今はいったんサンプルデータが入ってます）
+# 一時的にsampleデータがっ入ってます
 def generate_sample_data(start_year, end_year):
     """指定された年度範囲でサンプル統計データを生成"""
     years = list(range(start_year, end_year + 1))
@@ -195,7 +195,7 @@ def generate_sample_data(start_year, end_year):
             data[key] = [max(0, int(val)) for val in data[key]]  # 負の値を防ぐ
     
     return pd.DataFrame(data)
-#年度範囲
+
 app_ui = ui.page_sidebar(
     ui.sidebar(
         ui.h3("表示設定"),
@@ -222,7 +222,7 @@ app_ui = ui.page_sidebar(
             selected=["turnout_rate"]
         ),
         ui.br(),
-        ui.p("※ 複数項目を選択すると、それぞれ別のグラフで表示されます。"),
+        ui.p("※ 複数項目を選択すると、同じグラフ内に重ねて表示されます。"),
         ui.p("※ データはサンプルデータです。")
     ),
     ui.card(
@@ -246,7 +246,7 @@ def server(input, output, session):
         data = filtered_data()
         
         if not selected_metrics:
-            fig, ax = plt.subplots(figsize=(10, 6))
+            fig, ax = plt.subplots(figsize=(12, 8))
             ax.text(0.5, 0.5, '表示項目を選択してください', 
                    ha='center', va='center', transform=ax.transAxes, fontsize=16)
             ax.set_xlim(0, 1)
@@ -264,42 +264,81 @@ def server(input, output, session):
         }
         
         colors = ['#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c']
+        markers = ['o', 's', '^', 'D', 'v']
         
-        # サブプロットを作成
-        fig, axes = plt.subplots(len(selected_metrics), 1, figsize=(12, 4 * len(selected_metrics)))
+        # 一つのグラフに全ての選択された項目を表示
+        fig, ax1 = plt.subplots(figsize=(12, 8))
         
-        if len(selected_metrics) == 1:
-            axes = [axes]
+        # 左軸用の項目（投票率、候補者比率）
+        left_axis_metrics = [m for m in selected_metrics if m in ['turnout_rate', 'candidate_ratio']]
         
-        for i, metric in enumerate(selected_metrics):
-            ax = axes[i]
+        # 右軸用の項目（有権者数関連）
+        right_axis_metrics = [m for m in selected_metrics if m in ['total_voters', 'male_voters', 'female_voters']]
+        
+        # 左軸にプロット
+        lines1 = []
+        labels1 = []
+        for i, metric in enumerate(left_axis_metrics):
+            line = ax1.plot(data['year'], data[metric], 
+                           marker=markers[i % len(markers)], 
+                           linewidth=2.5, 
+                           markersize=7,
+                           color=colors[i % len(colors)], 
+                           label=metric_labels[metric])
+            lines1.extend(line)
+            labels1.append(metric_labels[metric])
+        
+        # 左軸の設定
+        if left_axis_metrics:
+            ax1.set_xlabel('年', fontsize=12)
+            if 'turnout_rate' in left_axis_metrics and 'candidate_ratio' in left_axis_metrics:
+                ax1.set_ylabel('投票率 (%) / 候補者比率', fontsize=12, color=colors[0])
+            elif 'turnout_rate' in left_axis_metrics:
+                ax1.set_ylabel('投票率 (%)', fontsize=12, color=colors[0])
+            elif 'candidate_ratio' in left_axis_metrics:
+                ax1.set_ylabel('候補者比率', fontsize=12, color=colors[0])
+            ax1.tick_params(axis='y', labelcolor=colors[0])
+        
+        # 右軸の設定
+        lines2 = []
+        labels2 = []
+        if right_axis_metrics:
+            ax2 = ax1.twinx()
             
-            # 折れ線グラフを描画
-            ax.plot(data['year'], data[metric], 
-                   marker='o', linewidth=2.5, markersize=7, 
-                   color=colors[i % len(colors)], label=metric_labels[metric])
+            for i, metric in enumerate(right_axis_metrics):
+                color_idx = len(left_axis_metrics) + i
+                line = ax2.plot(data['year'], data[metric], 
+                               marker=markers[color_idx % len(markers)], 
+                               linewidth=2.5, 
+                               markersize=7,
+                               color=colors[color_idx % len(colors)], 
+                               label=metric_labels[metric])
+                lines2.extend(line)
+                labels2.append(metric_labels[metric])
             
-            year_range = input.year_range()
-            ax.set_title(f"{metric_labels[metric]}の推移 ({year_range[0]}年 - {year_range[1]}年)", 
-                        fontsize=14, fontweight='bold', pad=20)
-            ax.set_xlabel('年', fontsize=12)
-            ax.set_ylabel(metric_labels[metric], fontsize=12)
-            ax.grid(True, alpha=0.3)
-            ax.legend()
-            
-            # X軸の年表示を調整
-            ax.set_xlim(data['year'].min(), data['year'].max())
-            
-            # Y軸の値をフォーマット
-            if metric in ['total_voters', 'male_voters', 'female_voters']:
-                ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
-            elif metric == 'turnout_rate':
-                ax.set_ylim(0, 100)
-            elif metric == 'candidate_ratio':
-                ax.set_ylim(bottom=1.0)
+            ax2.set_ylabel('有権者数 (人)', fontsize=12, color=colors[len(left_axis_metrics)])
+            ax2.tick_params(axis='y', labelcolor=colors[len(left_axis_metrics)])
+            # Y軸の値をフォーマット（カンマ区切り）
+            ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
+        
+        # タイトル設定
+        year_range = input.year_range()
+        title = f"選択された統計項目の推移 ({year_range[0]}年 - {year_range[1]}年)"
+        ax1.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        
+        # 凡例の統合
+        all_lines = lines1 + lines2
+        all_labels = labels1 + labels2
+        if all_lines:
+            ax1.legend(all_lines, all_labels, loc='upper left', bbox_to_anchor=(0.02, 0.98))
+        
+        # グリッド
+        ax1.grid(True, alpha=0.3)
+        
+        # X軸の年表示を調整
+        ax1.set_xlim(data['year'].min(), data['year'].max())
         
         plt.tight_layout()
         return fig
 
 app = App(app_ui, server)
-
