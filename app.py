@@ -171,7 +171,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-# 一時的にsampleデータがっ入ってます
+# 一時的にsampleデータが入ってます
 def generate_sample_data(start_year, end_year):
     """指定された年度範囲でサンプル統計データを生成"""
     years = list(range(start_year, end_year + 1))
