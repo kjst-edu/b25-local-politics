@@ -211,6 +211,7 @@ app_ui = ui.page_sidebar(
             sep=""
         ),
         ui.br(),
+        #まだ定数比広報者数は棒グラフになっていません
         ui.input_checkbox_group(
             "selected_metrics",
             "表示する統計項目を選択してください:",
