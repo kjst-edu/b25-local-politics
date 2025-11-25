@@ -15,6 +15,33 @@ import pandas as pd
 # 大阪府の市町村データ,ここに市町村ごとのデータをどうにか結びつける必要あり
 #結びつけるうえ、それがどの項目に当てはまるのかの分類も加える必要がある
 municipalities_data = [
+   #区
+    {"name": "都島区", "reading": "みやこじまく", "type": "区", "parent": "大阪市"},
+    {"name": "福島区", "reading": "ふくしまく", "type": "区", "parent": "大阪市"},
+    {"name": "此花区", "reading": "このはなく", "type": "区", "parent": "大阪市"},
+    {"name": "西区", "reading": "にしく", "type": "区", "parent": "大阪市"},
+    {"name": "港区", "reading": "みなとく", "type": "区", "parent": "大阪市"},
+    {"name": "大正区", "reading": "たいしょうく", "type": "区", "parent": "大阪市"},
+    {"name": "天王寺区", "reading": "てんのうじく", "type": "区", "parent": "大阪市"},
+    {"name": "浪速区", "reading": "なにわく", "type": "区", "parent": "大阪市"},
+    {"name": "西淀川区", "reading": "にしよどがわく", "type": "区", "parent": "大阪市"},
+    {"name": "東淀川区", "reading": "ひがしよどがわく", "type": "区", "parent": "大阪市"},
+    {"name": "東成区", "reading": "ひがしなりく", "type": "区", "parent": "大阪市"},
+    {"name": "生野区", "reading": "いくのく", "type": "区", "parent": "大阪市"},
+    {"name": "旭区", "reading": "あさひく", "type": "区", "parent": "大阪市"},
+    {"name": "城東区", "reading": "じょうとうく", "type": "区", "parent": "大阪市"},
+    {"name": "阿倍野区", "reading": "あべのく", "type": "区", "parent": "大阪市"},
+    {"name": "住吉区", "reading": "すみよしく", "type": "区", "parent": "大阪市"},
+    {"name": "東住吉区", "reading": "ひがしすみよしく", "type": "区", "parent": "大阪市"},
+    {"name": "西成区", "reading": "にしなりく", "type": "区", "parent": "大阪市"},
+    {"name": "淀川区", "reading": "よどがわく", "type": "区", "parent": "大阪市"},
+    {"name": "鶴見区", "reading": "つるみく", "type": "区", "parent": "大阪市"},
+    {"name": "住之江区", "reading": "すみのえく", "type": "区", "parent": "大阪市"},
+    {"name": "平野区", "reading": "ひらのく", "type": "区", "parent": "大阪市"},
+    {"name": "北区", "reading": "きたく", "type": "区", "parent": "大阪市"},
+    {"name": "中央区", "reading": "ちゅうおうく", "type": "区", "parent": "大阪市"},
+    
+
     # 市
     {"name": "大阪市", "reading": "おおさかし", "type": "市"},
     {"name": "堺市", "reading": "さかいし", "type": "市"},
@@ -89,6 +116,7 @@ app_ui = ui.page_sidebar(
             "自治体種別:",
             choices={
                 "": "すべて",
+                "区": "区",
                 "市": "市",
                 "町": "町",
                 "村": "村",
@@ -97,9 +125,9 @@ app_ui = ui.page_sidebar(
         ),
         ui.input_text(
             "name_filter",
-            "市町村名で絞り込み:",
+            "区市町村名で絞り込み:",
             value="",
-            placeholder="市町村名の一部を入力"
+            placeholder="区市町村名の一部を入力"
         ),
         ui.br(),
         ui.p(f"総登録数: {len(municipalities_df)}件")
