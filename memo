@@ -1,0 +1,3 @@
+uv run get_data.py get_data url 名づけ
+
+uv run clean_data.py data/csv名
