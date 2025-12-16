@@ -1,3 +1,8 @@
 uv run get_data.py get-data url （例：kswd2023A）
 
 uv run clean_data.py data/（整えたいcsvファイル名）
+
+千早赤坂ー＞和泉
+泉大津ー＞箕面
+守口ー＞西城
+堺ー＞八尾
