@@ -92,107 +92,6 @@ municipalities_data = [
 
 municipalities_df = pd.DataFrame(municipalities_data)
 
-app_ui = ui.page_sidebar(
-    ui.sidebar(
-        ui.h3("検索条件"),
-        ui.input_select(
-            "initial_letter",
-            "頭文字を選択:",
-            choices={
-                "": "すべて",
-                "あ": "あ行",
-                "か": "か行", 
-                "さ": "さ行",
-                "た": "た行",
-                "な": "な行",
-                "は": "は行",
-                "ま": "ま行",
-                "や": "や行",
-            },
-            selected=""
-        ),
-        ui.input_select(
-            "municipality_type",
-            "自治体種別:",
-            choices={
-                "": "すべて",
-                "区": "区",
-                "市": "市",
-                "町": "町",
-                "村": "村",
-            },
-            selected=""
-        ),
-        ui.input_text(
-            "name_filter",
-            "区市町村名で絞り込み:",
-            value="",
-            placeholder="区市町村名の一部を入力"
-        ),
-        ui.br(),
-        ui.p(f"総登録数: {len(municipalities_df)}件")
-    ),
-    #アプリタイトル
-    ui.div(
-        ui.h1("🗳️ 大阪府の選挙情報", 
-              style="text-align: center; color: #1e40af; margin-bottom: 30px; padding: 20px; background-color: #f1f5f9; border-radius: 10px;"),
-        style="margin-bottom: 20px;"
-    ),
-    #検索結果タイトル
-    ui.card(
-        ui.card_header("検索結果"),
-        ui.output_data_frame("municipalities_table")
-    )
-)
-
-def server(input, output, session):
-    @reactive.calc
-    def filtered_municipalities():
-        df = municipalities_df.copy()
-        
-        # 頭文字による絞り込み
-        if input.initial_letter():
-            # ひらがなの行による分類（ら行・わ行を除去ないので）
-            hiragana_ranges = {
-                "あ": ["あ", "い", "う", "え", "お"],
-                "か": ["か", "き", "く", "け", "こ", "が", "ぎ", "ぐ", "げ", "ご"],
-                "さ": ["さ", "し", "す", "せ", "そ", "ざ", "じ", "ず", "ぜ", "ぞ"],
-                "た": ["た", "ち", "つ", "て", "と", "だ", "ぢ", "づ", "で", "ど"],
-                "な": ["な", "に", "ぬ", "ね", "の"],
-                "は": ["は", "ひ", "ふ", "へ", "ほ", "ば", "び", "ぶ", "べ", "ぼ", "ぱ", "ぴ", "ぷ", "ぺ", "ぽ"],
-                "ま": ["ま", "み", "む", "め", "も"],
-                "や": ["や", "ゆ", "よ"],
-            }
-            
-            target_chars = hiragana_ranges.get(input.initial_letter(), [])
-            df = df[df["reading"].str[0].isin(target_chars)]
-        
-        # 自治体種別による絞り込み
-        if input.municipality_type():
-            df = df[df["type"] == input.municipality_type()]
-        
-        # 名前による絞り込み
-        if input.name_filter():
-            df = df[df["name"].str.contains(input.name_filter(), na=False)]
-        
-        return df.sort_values("reading").reset_index(drop=True)
-    
-    @render.data_frame
-    def municipalities_table():
-        df = filtered_municipalities()
-        
-        # 表示用のデータフレームを作成
-        display_df = df[["name", "type", "reading"]].copy()
-        display_df.columns = ["市町村名", "種別", "読み方"]
-        
-        return render.DataTable(
-            display_df,
-            height="400px",
-            summary=f"検索結果: {len(display_df)}件",
-            selection_mode="row"  # 行選択を有効化
-        )
-
-app = App(app_ui, server)
 #今のところこの上下の機能は連結していません。
 #表示項目
 from shiny import App, reactive, render, ui
@@ -237,6 +136,11 @@ def generate_sample_data(start_year, end_year):
 app_ui = ui.page_sidebar(
     ui.sidebar(
         ui.h3("表示設定"),
+        ui.input_selectize(
+            "selention_area",
+            "市町村を選択",
+            ["大阪市", "堺市",  "豊中市", "吹田市",  "高槻市",  "枚方市", "八尾市",  "寝屋川市", "東大阪市",  "岸和田市", "池田市",  "泉大津市",  "貝塚市",  "守口市",  "茨木市",  "大東市", "和泉市",  "箕面市",  "柏原市",  "羽曳野市",  "門真市",  "摂津市",  "高石市",  "藤井寺市",  "泉南市",  "四條畷市",  "交野市",  "大阪狭山市", "阪南市",  "泉佐野市",  "富田林市",  "河内長野市",  "松原市",  "島本町",  "豊能町",  "能勢町",  "忠岡町",  "熊取町",  "田尻町", "岬町",  "太子町", "河南町", "千早赤阪村"]
+            ),
         ui.input_slider(
             "year_range",
             "表示年度範囲:",
