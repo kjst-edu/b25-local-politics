@@ -73,7 +73,6 @@ def process_dataframe(df):
         '投票日': 'vote_date',
         '告示日': 'announcement_date',
         '投票率': 'turnout_rate',
-        '前回投票率': 'previous_turnout_rate',
         '定数/候補者数': 'seats_candidates',
         '有権者数': 'total_voters',
         '男性': 'male_voters',
@@ -97,7 +96,7 @@ def process_dataframe(df):
                 pass
     
     # 数値列の処理（パーセント記号やカンマを削除して数値に変換）
-    numeric_columns = ['turnout_rate', 'previous_turnout_rate', 'total_voters', 'male_voters', 'female_voters']
+    numeric_columns = ['turnout_rate', 'total_voters', 'male_voters', 'female_voters']
     
     for col in numeric_columns:
         if col in df.columns:
@@ -170,7 +169,7 @@ app_ui = ui.page_sidebar(
             "表示年度範囲:",
             min=1990,
             max=2030,
-            value=[1990, 2025],
+            value=[2000, 2025],
             step=1,
             sep=""
         ),
@@ -183,8 +182,7 @@ app_ui = ui.page_sidebar(
                 "total_voters": "有権者数（合計）",
                 "male_voters": "有権者数（男性）",
                 "female_voters": "有権者数（女性）",
-                "candidate_ratio": "定数/候補者数比率",
-                "previous_turnout_rate": "前回投票率 (%)"
+                "candidate_ratio": "定数/候補者数比率"
             },
             selected=["turnout_rate"]
         ),
@@ -273,8 +271,7 @@ def server(input, output, session):
             "total_voters": "有権者数（合計）",
             "male_voters": "有権者数（男性）",
             "female_voters": "有権者数（女性）",
-            "candidate_ratio": "定数/候補者数比率",
-            "previous_turnout_rate": "前回投票率 (%)"
+            "candidate_ratio": "定数/候補者数比率"
         }
         
         colors = ['#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c']
@@ -282,45 +279,33 @@ def server(input, output, session):
         
         fig, ax1 = plt.subplots(figsize=(12, 8))
         
-        # 左軸用の項目（投票率、候補者比率）
-        left_axis_metrics = [m for m in selected_metrics if m in ['turnout_rate', 'candidate_ratio', 'previous_turnout_rate']]
+        # 左軸用の項目（投票率のみ）
+        left_axis_metrics = [m for m in selected_metrics if m in ['turnout_rate']]
         
-        # 右軸用の項目（有権者数関連）
-        right_axis_metrics = [m for m in selected_metrics if m in ['total_voters', 'male_voters', 'female_voters']]
+        # 右軸用の項目（有権者数、定数/候補者数比率）
+        right_axis_metrics = [m for m in selected_metrics if m in ['total_voters', 'male_voters', 'female_voters', 'candidate_ratio']]
         
-        # 左軸にプロット
+        # 左軸にプロット（投票率）
         lines1 = []
         labels1 = []
-        bar_width = 0.6
         
         for i, metric in enumerate(left_axis_metrics):
             if metric in data.columns:
-                if metric == 'candidate_ratio':
-                    if 'candidate_count' in data.columns and 'fixed_seats' in data.columns:
-                        bars1 = ax1.bar(data['year'], data['candidate_count'], 
-                                      width=bar_width, alpha=0.6, color='#87ceeb', label='候補者数')
-                        bars2 = ax1.bar(data['year'], data['fixed_seats'], 
-                                      width=bar_width, alpha=0.8, color='#808080', label='定数')
-                        lines1.extend([bars1, bars2])
-                        labels1.extend(['候補者数', '定数'])
-                else:
-                    line = ax1.plot(data['year'], data[metric], 
-                                   marker=markers[i % len(markers)], linewidth=2.5, markersize=7,
-                                   color=colors[i % len(colors)], label=metric_labels[metric])
-                    lines1.extend(line)
-                    labels1.append(metric_labels[metric])
+                line = ax1.plot(data['year'], data[metric], 
+                               marker=markers[i % len(markers)], linewidth=2.5, markersize=7,
+                               color=colors[i % len(colors)], label=metric_labels[metric])
+                lines1.extend(line)
+                labels1.append(metric_labels[metric])
         
         # 左軸の設定
         if left_axis_metrics:
             ax1.set_xlabel('年', fontsize=12)
-            if 'turnout_rate' in left_axis_metrics and 'candidate_ratio' in left_axis_metrics:
-                ax1.set_ylabel('投票率 (%) / 人数', fontsize=12, color=colors[0])
-            elif 'turnout_rate' in left_axis_metrics:
-                ax1.set_ylabel('投票率 (%)', fontsize=12, color=colors[0])
-                ax1.set_ylim(20, 80)  # 投票率の縦軸を20-80%に固定
-            elif 'candidate_ratio' in left_axis_metrics:
-                ax1.set_ylabel('人数', fontsize=12, color=colors[0])
+            ax1.set_ylabel('投票率 (%)', fontsize=12, color=colors[0])
+            ax1.set_ylim(20, 80)  # 投票率の縦軸を20-80%に固定
             ax1.tick_params(axis='y', labelcolor=colors[0])
+        else:
+            # 投票率がない場合でも軸のラベルは設定
+            ax1.set_xlabel('年', fontsize=12)
         
         # 右軸の設定
         lines2 = []
@@ -328,8 +313,22 @@ def server(input, output, session):
         if right_axis_metrics:
             ax2 = ax1.twinx()
             
+            bar_width = 0.6
+            has_bar_chart = False
+            
             for i, metric in enumerate(right_axis_metrics):
-                if metric in data.columns:
+                if metric == 'candidate_ratio':
+                    if 'candidate_count' in data.columns and 'fixed_seats' in data.columns:
+                        # 棒グラフで表示
+                        bars1 = ax2.bar(data['year'], data['candidate_count'], 
+                                      width=bar_width, alpha=0.6, color='#87ceeb', label='候補者数')
+                        bars2 = ax2.bar(data['year'], data['fixed_seats'], 
+                                      width=bar_width, alpha=0.8, color='#808080', label='定数')
+                        lines2.extend([bars1, bars2])
+                        labels2.extend(['候補者数', '定数'])
+                        has_bar_chart = True
+                elif metric in data.columns:
+                    # 線グラフで表示
                     color_idx = len(left_axis_metrics) + i
                     line = ax2.plot(data['year'], data[metric], 
                                    marker=markers[color_idx % len(markers)], linewidth=2.5, markersize=7,
@@ -337,8 +336,13 @@ def server(input, output, session):
                     lines2.extend(line)
                     labels2.append(metric_labels[metric])
             
-            ax2.set_ylabel('有権者数 (人)', fontsize=12, color=colors[len(left_axis_metrics)])
-            ax2.tick_params(axis='y', labelcolor=colors[len(left_axis_metrics)])
+            # 右軸のラベル設定
+            if has_bar_chart and len(right_axis_metrics) == 1:
+                ax2.set_ylabel('人数', fontsize=12, color='#808080')
+            else:
+                ax2.set_ylabel('有権者数 (人)', fontsize=12, color=colors[len(left_axis_metrics)])
+            
+            ax2.tick_params(axis='y')
             ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
         
         # タイトル設定
