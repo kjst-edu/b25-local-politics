@@ -125,7 +125,7 @@ def process_dataframe(df):
 # UIの定義
 app_ui = ui.page_sidebar(
     ui.sidebar(
-        ui.h3("表示内容"),
+        ui.h4("表示内容の設定"),
         ui.input_selectize(
             "municipality_1",
             "市町村を選択（メイン）",
@@ -134,7 +134,7 @@ app_ui = ui.page_sidebar(
         ),
         ui.input_selectize(
             "municipality_2",
-            "市町村を選択（サブ）",
+            "市町村を選択（比較用）",
             {"": "選択なし", **municipalities_mapping},
             selected=""
         ),
@@ -156,7 +156,7 @@ app_ui = ui.page_sidebar(
             "selected_metrics",
             "表示する統計項目を選択（複数選択可）:",
             choices={
-                "turnout_rate": "投票率 (%)",
+                "turnout_rate": "投票率（％）",
                 "total_voters": "有権者数（合計）",
                 "male_voters": "有権者数（男性）",
                 "female_voters": "有権者数（女性）",
@@ -165,7 +165,7 @@ app_ui = ui.page_sidebar(
             selected=["turnout_rate"]
         ),
         ui.br(),
-        ui.p("※ 有権者数 + 定数/候補者数比率は非対応"),
+        ui.p("※ 有権者数（-） × 定数/候補者数比率は非対応"),
         ui.p("※ データのない期間は空白もしくはゼロと表示されます。")
     ),
     ui.card(
@@ -272,7 +272,7 @@ def server(input, output, session):
         
         # メトリクス名とラベルのマッピング
         metric_labels = {
-            "turnout_rate": "投票率 (%)",
+            "turnout_rate": "投票率（％）",
             "total_voters": "有権者数（合計）",
             "male_voters": "有権者数（男性）",
             "female_voters": "有権者数（女性）",
@@ -318,7 +318,7 @@ def server(input, output, session):
         # 左軸の設定
         if left_axis_metrics:
             ax1.set_xlabel('年', fontsize=12)
-            ax1.set_ylabel('投票率 (%)', fontsize=12, color='#2563eb')
+            ax1.set_ylabel('投票率（％）', fontsize=12, color='#2563eb')
             ax1.set_ylim(20, 80)  # 投票率の縦軸を20-80%に固定
             ax1.tick_params(axis='y', labelcolor='#2563eb')
         else:
@@ -375,7 +375,7 @@ def server(input, output, session):
         vote_type_name = "首長選挙" if vote_type == "a" else "議員選挙"
         
         municipality_names = " & ".join([item['name'] for item in valid_data])
-        title = f"{municipality_names} - {vote_type_name}データの推移 ({year_range[0]}年 - {year_range[1]}年)"
+        title = f"{municipality_names} - {vote_type_name}データの推移（{year_range[0]}年 - {year_range[1]}年）"
         ax1.set_title(title, fontsize=14, fontweight='bold', pad=30)
         
         # 凡例の位置を調整

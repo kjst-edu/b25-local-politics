@@ -7,6 +7,8 @@ uv run clean_data.py data/（整えたいcsvファイル名）
 守口ー＞西城
 堺ー＞八尾
 
+↓app.pyのoutput_plot2こ前に存在していた
+ui.output_text("data_status"),
 
 ↓app.pyのrender.plot直前に存在していた
     @render.text
