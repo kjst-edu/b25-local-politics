@@ -73,7 +73,6 @@ def process_dataframe(df):
         '投票日': 'vote_date',
         '告示日': 'announcement_date',
         '投票率': 'turnout_rate',
-        '前回投票率': 'previous_turnout_rate',
         '定数/候補者数': 'seats_candidates',
         '有権者数': 'total_voters',
         '男性': 'male_voters',
@@ -97,7 +96,7 @@ def process_dataframe(df):
                 pass
     
     # 数値列の処理（パーセント記号やカンマを削除して数値に変換）
-    numeric_columns = ['turnout_rate', 'previous_turnout_rate', 'total_voters', 'male_voters', 'female_voters']
+    numeric_columns = ['turnout_rate', 'total_voters', 'male_voters', 'female_voters']
     
     for col in numeric_columns:
         if col in df.columns:
@@ -123,46 +122,25 @@ def process_dataframe(df):
     
     return df
 
-def generate_sample_data(start_year, end_year):
-    """サンプルデータ生成（データが見つからない場合のフォールバック）"""
-    years = list(range(start_year, end_year + 1))
-    np.random.seed(42)
-    
-    data = {
-        'year': years,
-        'turnout_rate': [45 + np.random.normal(0, 5) for _ in years],
-        'total_voters': [80000 + i * 2000 + np.random.normal(0, 3000) for i in range(len(years))],
-        'male_voters': [38000 + i * 1000 + np.random.normal(0, 1500) for i in range(len(years))],
-        'female_voters': [42000 + i * 1000 + np.random.normal(0, 1500) for i in range(len(years))],
-        'candidate_count': [25 + np.random.randint(-3, 4) for _ in years],
-        'fixed_seats': [20 + np.random.randint(-1, 2) for _ in years]
-    }
-    
-    data['candidate_ratio'] = [data['fixed_seats'][i] / data['candidate_count'][i] for i in range(len(years))]
-    
-    for key in ['turnout_rate', 'total_voters', 'male_voters', 'female_voters']:
-        if key == 'turnout_rate':
-            data[key] = [max(0, min(100, val)) for val in data[key]]
-        else:
-            data[key] = [max(0, int(val)) for val in data[key]]
-    
-    data['candidate_count'] = [max(1, val) for val in data['candidate_count']]
-    data['fixed_seats'] = [max(1, min(val, data['candidate_count'][i])) for i, val in enumerate(data['fixed_seats'])]
-    
-    return pd.DataFrame(data)
-
 # UIの定義
 app_ui = ui.page_sidebar(
     ui.sidebar(
-        ui.h3("表示設定"),
+        ui.h4("表示内容の設定"),
         ui.input_selectize(
-            "selention_pre",
-            "市町村を選択",
-            municipalities_mapping
+            "municipality_1",
+            "市町村を選択（メイン）",
+            municipalities_mapping,
+            selected="oosk"
+        ),
+        ui.input_selectize(
+            "municipality_2",
+            "市町村を選択（比較用）",
+            {"": "選択なし", **municipalities_mapping},
+            selected=""
         ),
         ui.input_select(
             "vote_type",
-            "選挙の種類",
+            "選挙の種類（首長/議員）",
             {"a": "首長選挙", "b": "議員選挙"}
         ),
         ui.input_slider(
@@ -170,32 +148,28 @@ app_ui = ui.page_sidebar(
             "表示年度範囲:",
             min=1990,
             max=2030,
-            value=[1990, 2025],
+            value=[2000, 2025],
             step=1,
             sep=""
         ),
-        ui.br(),
         ui.input_checkbox_group(
             "selected_metrics",
-            "表示する統計項目を選択してください:",
+            "表示する統計項目を選択（複数選択可）:",
             choices={
-                "turnout_rate": "投票率 (%)",
+                "turnout_rate": "投票率（％）",
                 "total_voters": "有権者数（合計）",
                 "male_voters": "有権者数（男性）",
                 "female_voters": "有権者数（女性）",
-                "candidate_ratio": "定数/候補者数比率",
-                "previous_turnout_rate": "前回投票率 (%)"
+                "candidate_ratio": "定数/候補者数比率"
             },
             selected=["turnout_rate"]
         ),
         ui.br(),
-        ui.p("※ 複数項目を選択すると、同じグラフ内に重ねて表示されます。"),
-        ui.p("※ 定数/候補者数比率は棒グラフで表示されます（水色：候補者数、グレー：定数）。")
+        ui.p("※ 有権者数（-） × 定数/候補者数比率は非対応"),
+        ui.p("※ データのない期間は空白もしくはゼロと表示されます。")
     ),
     ui.card(
-        ui.card_header("統計データ推移グラフ"),
-        ui.output_text("data_status"),
-        ui.br(),
+        ui.card_header("選挙データの推移"),
         ui.output_plot("statistics_plot")
     )
 )
@@ -203,53 +177,82 @@ app_ui = ui.page_sidebar(
 def server(input, output, session):
     
     @reactive.calc
-    def load_data():
-        """選択された市町村・選挙種別のデータを読み込む"""
-        municipality_code = input.selention_pre()
+    def load_all_data():
+        """選択された市町村のデータを読み込む"""
+        municipality_1 = input.municipality_1()
+        municipality_2 = input.municipality_2()
         vote_type = input.vote_type()
-        
-        # 実データを読み込み試行
-        df = load_csv_data(municipality_code, vote_type)
-        
-        if df is not None:
-            df = process_dataframe(df)
-            return df, True  # 実データ
-        else:
-            # サンプルデータを生成
-            year_range = input.year_range()
-            return generate_sample_data(year_range[0], year_range[1]), False  # サンプルデータ
-    
-    @reactive.calc
-    def filtered_data():
-        """年度範囲でフィルタリング"""
-        df, is_real = load_data()
         year_range = input.year_range()
         
-        if df is not None and 'year' in df.columns:
-            df = df[(df['year'] >= year_range[0]) & (df['year'] <= year_range[1])]
+        results = []
         
-        return df, is_real
-    
-    @render.text
-    def data_status():
-        """データの読み込み状況を表示"""
-        _, is_real = filtered_data()
-        municipality_code = input.selention_pre()
-        municipality_name = municipalities_mapping.get(municipality_code, municipality_code)
-        vote_type = input.vote_type()
-        vote_type_name = "首長選挙" if vote_type == "a" else "議員選挙"
+        # 市町村1のデータ読み込み
+        if municipality_1:
+            df1 = load_csv_data(municipality_1, vote_type)
+            if df1 is not None:
+                df1 = process_dataframe(df1)
+                if df1 is not None and 'year' in df1.columns:
+                    df1 = df1[(df1['year'] >= year_range[0]) & (df1['year'] <= year_range[1])]
+                    results.append({
+                        'code': municipality_1,
+                        'name': municipalities_mapping[municipality_1],
+                        'data': df1,
+                        'success': True
+                    })
+                else:
+                    results.append({
+                        'code': municipality_1,
+                        'name': municipalities_mapping[municipality_1],
+                        'data': None,
+                        'success': False
+                    })
+            else:
+                results.append({
+                    'code': municipality_1,
+                    'name': municipalities_mapping[municipality_1],
+                    'data': None,
+                    'success': False
+                })
         
-        if is_real:
-            return f"✅ {municipality_name} - {vote_type_name}の実データを表示中"
-        else:
-            return f"⚠️ {municipality_name} - {vote_type_name}のデータが見つかりません。サンプルデータを表示中"
+        # 市町村2のデータ読み込み（選択されている場合）
+        if municipality_2 and municipality_2 != "":
+            df2 = load_csv_data(municipality_2, vote_type)
+            if df2 is not None:
+                df2 = process_dataframe(df2)
+                if df2 is not None and 'year' in df2.columns:
+                    df2 = df2[(df2['year'] >= year_range[0]) & (df2['year'] <= year_range[1])]
+                    results.append({
+                        'code': municipality_2,
+                        'name': municipalities_mapping[municipality_2],
+                        'data': df2,
+                        'success': True
+                    })
+                else:
+                    results.append({
+                        'code': municipality_2,
+                        'name': municipalities_mapping[municipality_2],
+                        'data': None,
+                        'success': False
+                    })
+            else:
+                results.append({
+                    'code': municipality_2,
+                    'name': municipalities_mapping[municipality_2],
+                    'data': None,
+                    'success': False
+                })
+        
+        return results
     
     @render.plot
     def statistics_plot():
         selected_metrics = input.selected_metrics()
-        data, is_real = filtered_data()
+        data_list = load_all_data()
         
-        if data is None or len(data) == 0:
+        # データが読み込まれているかチェック
+        valid_data = [item for item in data_list if item['success'] and item['data'] is not None and len(item['data']) > 0]
+        
+        if len(valid_data) == 0:
             fig, ax = plt.subplots(figsize=(12, 8))
             ax.text(0.5, 0.5, 'データがありません', 
                    ha='center', va='center', transform=ax.transAxes, fontsize=16, color='red')
@@ -269,58 +272,58 @@ def server(input, output, session):
         
         # メトリクス名とラベルのマッピング
         metric_labels = {
-            "turnout_rate": "投票率 (%)",
+            "turnout_rate": "投票率（％）",
             "total_voters": "有権者数（合計）",
             "male_voters": "有権者数（男性）",
             "female_voters": "有権者数（女性）",
-            "candidate_ratio": "定数/候補者数比率",
-            "previous_turnout_rate": "前回投票率 (%)"
+            "candidate_ratio": "定数/候補者数比率"
         }
         
-        colors = ['#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c']
-        markers = ['o', 's', '^', 'D', 'v']
+        # 表示項目ごとの色設定（市町村1: 濃い色、市町村2: 薄い色）
+        metric_colors = {
+            "turnout_rate": ['#2563eb', '#93c5fd'],  # 青系
+            "total_voters": ['#dc2626', '#fca5a5'],  # 赤系
+            "male_voters": ['#059669', '#86efac'],   # 緑系
+            "female_voters": ['#7c3aed', '#c4b5fd'], # 紫系
+            "candidate_ratio": ['#ea580c', '#fdba74'] # オレンジ系
+        }
+        
+        markers = ['o', 's']  # 市町村1: 丸、市町村2: 四角
+        linestyles = ['-', '--']  # 市町村1: 実線、市町村2: 破線
         
         fig, ax1 = plt.subplots(figsize=(12, 8))
         
-        # 左軸用の項目（投票率、候補者比率）
-        left_axis_metrics = [m for m in selected_metrics if m in ['turnout_rate', 'candidate_ratio', 'previous_turnout_rate']]
+        # 左軸用の項目（投票率のみ）
+        left_axis_metrics = [m for m in selected_metrics if m in ['turnout_rate']]
         
-        # 右軸用の項目（有権者数関連）
-        right_axis_metrics = [m for m in selected_metrics if m in ['total_voters', 'male_voters', 'female_voters']]
+        # 右軸用の項目（有権者数、定数/候補者数比率）
+        right_axis_metrics = [m for m in selected_metrics if m in ['total_voters', 'male_voters', 'female_voters', 'candidate_ratio']]
         
-        # 左軸にプロット
+        # 左軸にプロット（投票率）
         lines1 = []
         labels1 = []
-        bar_width = 0.6
         
-        for i, metric in enumerate(left_axis_metrics):
-            if metric in data.columns:
-                if metric == 'candidate_ratio':
-                    if 'candidate_count' in data.columns and 'fixed_seats' in data.columns:
-                        bars1 = ax1.bar(data['year'], data['candidate_count'], 
-                                      width=bar_width, alpha=0.6, color='#87ceeb', label='候補者数')
-                        bars2 = ax1.bar(data['year'], data['fixed_seats'], 
-                                      width=bar_width, alpha=0.8, color='#808080', label='定数')
-                        lines1.extend([bars1, bars2])
-                        labels1.extend(['候補者数', '定数'])
-                else:
+        for metric in left_axis_metrics:
+            for idx, item in enumerate(valid_data):
+                data = item['data']
+                if metric in data.columns:
+                    color = metric_colors[metric][idx]
                     line = ax1.plot(data['year'], data[metric], 
-                                   marker=markers[i % len(markers)], linewidth=2.5, markersize=7,
-                                   color=colors[i % len(colors)], label=metric_labels[metric])
+                                   marker=markers[idx], linewidth=2.5, markersize=7,
+                                   linestyle=linestyles[idx],
+                                   color=color, label=f"{item['name']} - {metric_labels[metric]}")
                     lines1.extend(line)
-                    labels1.append(metric_labels[metric])
+                    labels1.append(f"{item['name']} - {metric_labels[metric]}")
         
         # 左軸の設定
         if left_axis_metrics:
             ax1.set_xlabel('年', fontsize=12)
-            if 'turnout_rate' in left_axis_metrics and 'candidate_ratio' in left_axis_metrics:
-                ax1.set_ylabel('投票率 (%) / 人数', fontsize=12, color=colors[0])
-            elif 'turnout_rate' in left_axis_metrics:
-                ax1.set_ylabel('投票率 (%)', fontsize=12, color=colors[0])
-                ax1.set_ylim(20, 80)  # 投票率の縦軸を20-80%に固定
-            elif 'candidate_ratio' in left_axis_metrics:
-                ax1.set_ylabel('人数', fontsize=12, color=colors[0])
-            ax1.tick_params(axis='y', labelcolor=colors[0])
+            ax1.set_ylabel('投票率（％）', fontsize=12, color='#2563eb')
+            ax1.set_ylim(20, 80)  # 投票率の縦軸を20-80%に固定
+            ax1.tick_params(axis='y', labelcolor='#2563eb')
+        else:
+            # 投票率がない場合でも軸のラベルは設定
+            ax1.set_xlabel('年', fontsize=12)
         
         # 右軸の設定
         lines2 = []
@@ -328,36 +331,58 @@ def server(input, output, session):
         if right_axis_metrics:
             ax2 = ax1.twinx()
             
-            for i, metric in enumerate(right_axis_metrics):
-                if metric in data.columns:
-                    color_idx = len(left_axis_metrics) + i
-                    line = ax2.plot(data['year'], data[metric], 
-                                   marker=markers[color_idx % len(markers)], linewidth=2.5, markersize=7,
-                                   color=colors[color_idx % len(colors)], label=metric_labels[metric])
-                    lines2.extend(line)
-                    labels2.append(metric_labels[metric])
+            bar_width = 0.3
             
-            ax2.set_ylabel('有権者数 (人)', fontsize=12, color=colors[len(left_axis_metrics)])
-            ax2.tick_params(axis='y', labelcolor=colors[len(left_axis_metrics)])
+            for metric in right_axis_metrics:
+                if metric == 'candidate_ratio':
+                    # 棒グラフで表示
+                    for idx, item in enumerate(valid_data):
+                        data = item['data']
+                        if 'candidate_count' in data.columns and 'fixed_seats' in data.columns:
+                            offset = (idx - 0.5) * bar_width if len(valid_data) == 2 else 0
+                            color_candidate = metric_colors[metric][idx]
+                            color_seats = '#808080' if idx == 0 else '#b0b0b0'  # グレー（市町村1: 濃いグレー、市町村2: 薄いグレー）
+                            
+                            bars1 = ax2.bar(data['year'] + offset, data['candidate_count'], 
+                                          width=bar_width, alpha=0.6, color=color_candidate, 
+                                          label=f"{item['name']} - 候補者数")
+                            bars2 = ax2.bar(data['year'] + offset, data['fixed_seats'], 
+                                          width=bar_width, alpha=0.8, color=color_seats, 
+                                          label=f"{item['name']} - 定数")
+                            lines2.extend([bars1, bars2])
+                            labels2.extend([f"{item['name']} - 候補者数", f"{item['name']} - 定数"])
+                else:
+                    # 線グラフで表示
+                    for idx, item in enumerate(valid_data):
+                        data = item['data']
+                        if metric in data.columns:
+                            color = metric_colors[metric][idx]
+                            line = ax2.plot(data['year'], data[metric], 
+                                           marker=markers[idx], linewidth=2.5, markersize=7,
+                                           linestyle=linestyles[idx],
+                                           color=color, label=f"{item['name']} - {metric_labels[metric]}")
+                            lines2.extend(line)
+                            labels2.append(f"{item['name']} - {metric_labels[metric]}")
+            
+            # 右軸のラベル設定
+            ax2.set_ylabel('有権者数 (人)', fontsize=12)
+            ax2.tick_params(axis='y')
             ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
         
         # タイトル設定
         year_range = input.year_range()
-        municipality_code = input.selention_pre()
-        municipality_name = municipalities_mapping.get(municipality_code, municipality_code)
         vote_type = input.vote_type()
         vote_type_name = "首長選挙" if vote_type == "a" else "議員選挙"
         
-        title = f"{municipality_name} - {vote_type_name} 統計項目の推移 ({year_range[0]}年 - {year_range[1]}年)"
-        if not is_real:
-            title += " [サンプルデータ]"
+        municipality_names = " & ".join([item['name'] for item in valid_data])
+        title = f"{municipality_names} - {vote_type_name}データの推移（{year_range[0]}年 - {year_range[1]}年）"
         ax1.set_title(title, fontsize=14, fontweight='bold', pad=30)
         
         # 凡例の位置を調整
         all_lines = lines1 + lines2
         all_labels = labels1 + labels2
         if all_lines:
-            ax1.legend(all_lines, all_labels, loc='upper left', bbox_to_anchor=(0.02, 0.95))
+            ax1.legend(all_lines, all_labels, loc='upper left', bbox_to_anchor=(-0.08, 1.25), fontsize=9)
         
         # グリッド
         ax1.grid(True, alpha=0.3)

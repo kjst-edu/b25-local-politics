@@ -6,3 +6,24 @@ uv run clean_data.py data/（整えたいcsvファイル名）
 泉大津ー＞箕面
 守口ー＞西城
 堺ー＞八尾
+
+↓app.pyのoutput_plot2こ前に存在していた
+ui.output_text("data_status"),
+
+↓app.pyのrender.plot直前に存在していた
+    @render.text
+    def data_status():
+        """データの読み込み状況を表示"""
+        data_list = load_all_data()
+        vote_type = input.vote_type()
+        vote_type_name = "首長選挙" if vote_type == "a" else "議員選挙"
+        
+        status_lines = []
+        for item in data_list:
+            if item['success']:
+                status_lines.append(f"✅ {item['name']} - {vote_type_name}の実データを表示中")
+            else:
+                status_lines.append(f"⚠️ {item['name']} - {vote_type_name}のデータが見つかりません")
+        
+        return " | ".join(status_lines)
+    
