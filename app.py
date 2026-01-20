@@ -19,7 +19,7 @@ except ImportError:
 
 # 市町村データとコードのマッピング
 municipalities_mapping = {
-    "oosk": "大阪市", "ski": "堺市", "tynk": "豊中市", "suita": "吹田市", "tktk": "高槻市",
+    "null": "選択なし", "oosk": "大阪市", "ski": "堺市", "tynk": "豊中市", "suita": "吹田市", "tktk": "高槻市",
     "hrkt": "枚方市", "yo": "八尾市", "nygw": "寝屋川市", "hoska": "東大阪市", "kswd": "岸和田市",
     "ikd": "池田市", "izmot": "泉大津市", "kizk": "貝塚市", "mrgt": "守口市", "ibrk": "茨木市",
     "dit": "大東市", "izmi": "和泉市", "mno": "箕面市", "kswr": "柏原市", "hbkn": "羽曳野市",
@@ -254,7 +254,7 @@ def server(input, output, session):
         
         if len(valid_data) == 0:
             fig, ax = plt.subplots(figsize=(12, 8))
-            ax.text(0.5, 0.5, 'データがありません', 
+            ax.text(0.5, 0.5, '市町村を選択してください', 
                    ha='center', va='center', transform=ax.transAxes, fontsize=16, color='red')
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
@@ -263,8 +263,8 @@ def server(input, output, session):
         
         if not selected_metrics:
             fig, ax = plt.subplots(figsize=(12, 8))
-            ax.text(0.5, 0.5, '表示項目を選択してください', 
-                   ha='center', va='center', transform=ax.transAxes, fontsize=16)
+            ax.text(0.5, 0.5, '統計項目を選択してください', 
+                   ha='center', va='center', transform=ax.transAxes, fontsize=16, color='red')
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
             ax.axis('off')
